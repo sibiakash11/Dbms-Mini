@@ -1,0 +1,211 @@
+DBMS PROJECT
+
+FOOD DELIVERY DATABASE SYSTEM:
+
+Tables:
+
+1.
++--------------------+
+| Tables_in_food_del |
++--------------------+
+| accounts           |
+| cancel1            |
+| cus_details        |
+| del_address        |
+| feedback           |
+| food_item          |
+| mem_status         |
+| order_details      |
+| order_taken        |
+| promo              |
+| status             |
++--------------------+
+11 rows in set (0.00 sec)
+
+
+
+CREATION OF Tables:
+
+1. create table accounts(mobileno bigint ,password varchar(255),Cus_fname varchar(30));
+
+2. create table cus_details(MOB_NO bigint,CUS_FNAME varchar(10) ,CUS_LNAME varchar(10),BDATE date );
+
+3. create table food_item(ITEM_NAME varchar(20) ,PRICE mediumint,CATEGORY varchar(4));
+
+4. create table order_details(ORDER_ID varchar(4),ITEM_NAME varchar(20),QTY mediumint);
+
+5. create table order_taken(ORDER_ID varchar(4),mobileno bigint ,CUS_FNAME varchar(10),CUS_LNAME varchar(10),STATUS_ID varchar(4),ORDER_DATE date ,ORDER_TIME time , TOT_AMT mediumint);
+
+6. create table status(STATUS_ID varchar(4),STATUS varchar(15));
+
+7. create table feedback(ORDER_ID varchar(4) , DEL_FEED mediumint,FOOD_FEED mediumint, SUGG varchar(150));
+
+8. create table mem_status(mobileno bigint,mem_status varchar(4));
+
+9. create table del_address(mobileno bigint,house_no varchar(5) ,street varchar(20),area varchar(20),pincode bigint,landmark varchar(25));
+
+10. create table cancel1(ORDER_ID varchar(4));
+
+11.  create table promo(ORDER_ID varchar(4));
+
+12.  create table mem_avail(ORDER_ID varchar(4));
+
+
+Primary key:
+
+1.ALTER TABLE accounts ADD PRIMARY KEY (mobileno);
+
+2.ALTER TABLE Cus_details ADD PRIMARY KEY (MOB_NO);
+
+3.ALTER TABLE food_item ADD PRIMARY KEY (ITEM_NAME);
+
+4.ALTER TABLE order_details ADD PRIMARY KEY (ORDER_ID,ITEM_NAME);
+
+5.ALTER TABLE order_taken ADD COLUMN mobileno bigint;
+
+6.ALTER TABLE status ADD PRIMARY KEY (STATUS_ID);
+
+7.ALTER TABLE feedback ADD PRIMARY KEY (ORDER_ID);
+
+8.ALTER TABLE cancel1 ADD PRIMARY KEY (ORDER_ID);
+
+9. ALTER TABLE PROMO ADD PRIMARY KEY(ORDER_ID);
+
+10.ALTER TABLE mem_status ADD PRIMARY KEY (mobileno);
+
+11.ALTER TABLE del_address ADD PRIMARY KEY (mobileno);
+
+12. ALTER TABLE mem_avail ADD PRIMARY KEY(ORDER_ID);
+
+
+
+Foreign Key:
+
+
+1.ALTER TABLE order_details ADD FOREIGN KEY (ORDER_ID) REFERENCES order_taken(ORDER_ID);
+
+2.ALTER TABLE cus_details ADD FOREIGN KEY (MOB_NO) REFERENCES accounts(mobileno);
+
+3.ALTER TABLE order_details ADD FOREIGN KEY (STATUS_ID) REFERENCES status(STATUS_ID);
+
+4.ALTER TABLE feedback ADD FOREIGN KEY (ORDER_ID) REFERENCES order_taken(ORDER_ID);
+
+5.ALTER TABLE cancel DELETE FOREIGN KEY (ORDER_ID) REFERENCES order_taken(ORDER_ID);
+
+6.ALTER TABLE cancel ADD FOREIGN KEY (ORDER_ID) REFERENCES order_details(ORDER_ID);
+
+7.ALTER TABLE mem_status ADD FOREIGN KEY (mobileno) REFERENCES accounts(mobileno);
+
+8.ALTER TABLE del_address ADD FOREIGN KEY (mobileno) REFERENCES accounts(mobileno);
+
+9.ALTER TABLE order_taken ADD FOREIGN KEY (mobileno) REFERENCES accounts(mobileno);
+
+
+INSERTION OF TABLES:
+
+1. INSERT INTO FOOD_ITEM(ITEM_NAME , PRICE, CATEGORY) VALUES('BROWNIES','85','VEG');
+   INSERT INTO FOOD_ITEM(ITEM_NAME , PRICE, CATEGORY) VALUES('Chicken Biryani','100','NVEG');
+   INSERT INTO FOOD_ITEM(ITEM_NAME , PRICE, CATEGORY) VALUES('Chicken Gravy','70','NVEG');
+   INSERT INTO FOOD_ITEM(ITEM_NAME , PRICE, CATEGORY) VALUES('Panner Pulao','90','VEG');
+   INSERT INTO FOOD_ITEM(ITEM_NAME , PRICE, CATEGORY) VALUES('Parotta','85','VEG');
+
+
+2. INSERT INTO status(STATUS_ID,STATUS) VALUES('del','FOOD DELIVERED');
+   INSERT INTO status(STATUS_ID,STATUS) VALUES('out','OUT FOR DEL');
+   INSERT INTO status(STATUS_ID,STATUS) VALUES('prep','FOOD PREPARING');
+   INSERT INTO status(STATUS_ID,STATUS) VALUES('canc','CANCELLED');
+
+
+
+TRIGGERS:
+
+1. Cancel order Trigger:
+
+CREATE TRIGGER CANCEL_ORDER BEFORE INSERT ON cancel1
+  FOR EACH ROW
+  BEGIN
+    DELETE FROM ORDER_DETAILS WHERE order_details.ORDER_ID = NEW.ORDER_ID;
+  END;
+/
+
+2.Set status Cancelled:
+
+CREATE TRIGGER SET_CANCEL BEFORE INSERT ON cancel1
+  FOR EACH ROW
+  BEGIN
+    UPDATE ORDER_TAKEN SET STATUS_ID='canc' WHERE ORDER_TAKEN.ORDER_ID = NEW.ORDER_ID;
+  END;
+/
+
+
+CREATE TRIGGER APPLY_OFF BEFORE INSERT ON mem_avail
+FOR EACH ROW
+BEGIN
+    DECLARE amount mediumint; 
+    DECLARE x varchar(4);
+    select mem_status into x from mem_status where mobileno = (SELECT mobileno from order_taken where ORDER_TAKEN.ORDER_ID = NEW.ORDER_ID);
+        IF x = 'yes' THEN
+        	SET amount = mem_reward(NEW.ORDER_ID);
+        	CALL UPD_AMT(NEW.ORDER_ID,amount);
+        END IF;
+  END;
+/
+
+
+
+Function:
+
+A procedure or function that returns bill invoice 
+
+CREATE FUNCTION mem_reward(O_ID varchar(4))
+  RETURNS mediumint
+    DETERMINISTIC
+    BEGIN
+     DECLARE amount mediumint;
+        SELECT TOT_AMT INTO amount FROM ORDER_TAKEN WHERE ORDER_ID= O_ID;       
+     RETURN 0.6*amount;
+    END;
+
+
+
+ amount = amount - 0.4*amount;     
+
+
+
+Procedure:
+1.
+
+CREATE PROCEDURE promo(IN O_ID varchar(4),IN TOT_AMT mediumint)
+BEGIN
+DECLARE new_amt mediumint;
+SET new_amt = TOT_AMT - 0.3*TOT_AMT;
+UPDATE ORDER_TAKEN SET TOT_AMT = new_amt WHERE ORDER_ID = O_ID;
+END;
+// 
+
+
+2.
+
+CREATE PROCEDURE UPD_AMT(IN O_ID varchar(4),IN new_amt mediumint)
+BEGIN
+UPDATE ORDER_TAKEN SET TOT_AMT = new_amt WHERE ORDER_ID = O_ID;
+END;
+// 
+
+3.
+
+
+CREATE PROCEDURE SELECT_AMT(IN O_ID varchar(4))
+BEGIN
+SELECT TOT_AMT FROM ORDER_TAKEN WHERE ORDER_ID = O_ID;
+END;
+// 
+
+
+OTHER QUERIES ARE INCLUDED IN test2.js as queries using connection.query.
+
+
+
+
+THANK YOU
+    
